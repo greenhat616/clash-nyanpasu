@@ -273,7 +273,6 @@ impl TaskManager {
             build_task(task, list.len())
         };
 
-
         let task_id = task.id;
         let list_ref = self.list.clone();
         let executor = task.executor.clone();
