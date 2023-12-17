@@ -1,20 +1,31 @@
 use crate::utils::dirs;
-use once_cell::sync::OnceCell;
+use rocksdb::MultiThreaded;
+use std::sync::{Arc, OnceLock};
 
-/// storage is a wrapper or called a facade for the sled database
-
+/// storage is a wrapper or called a facade for the rocksdb
+/// Maybe provide a facade for a kv storage is a good idea?
 pub struct Storage {
-    instance: sled::Db,
+    instance: rocksdb::OptimisticTransactionDB<MultiThreaded>,
+    path: String,
 }
 
 impl Storage {
     pub fn global() -> &'static Self {
-        static STORAGE: OnceCell<Storage> = OnceCell::new();
+        static STORAGE: OnceLock<Arc<Storage>> = OnceLock::new();
 
         STORAGE.get_or_init(|| {
-            let path = dirs::storage_path().unwrap();
-            let instance = sled::open(path).expect("failed to open storage");
-            Storage { instance }
+            let path = dirs::storage_path().unwrap().to_str().unwrap().to_string();
+            let instance =
+                rocksdb::OptimisticTransactionDB::<MultiThreaded>::open_default(&path).unwrap();
+            Arc::new(Storage { instance, path })
         })
+    }
+
+    pub fn get_instance(&self) -> &rocksdb::OptimisticTransactionDB<MultiThreaded> {
+        &self.instance
+    }
+
+    pub fn destroy(&self) -> Result<(), rocksdb::Error> {
+        rocksdb::DB::destroy(&rocksdb::Options::default(), &self.path)
     }
 }

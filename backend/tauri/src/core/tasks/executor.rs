@@ -54,6 +54,12 @@ impl fmt::Debug for TaskExecutor {
     }
 }
 
+impl Default for TaskExecutor {
+    fn default() -> Self {
+        Self::Sync(Job::default()) // default job executor
+    }
+}
+
 impl From<Job> for TaskExecutor {
     fn from(job: Job) -> Self {
         Self::Sync(job)

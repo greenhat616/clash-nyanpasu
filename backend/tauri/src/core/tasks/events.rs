@@ -1,44 +1,58 @@
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 
+use super::storage::EventsGuard;
 use super::task::{TaskEventID, TaskID, TaskRunResult, Timestamp};
 use std::collections::HashMap;
-pub type TaskEvents = HashMap<TaskEventID, TaskEvent>;
+use std::sync::{Arc, OnceLock};
+pub struct TaskEvents;
 
 pub trait TaskEventsDispatcher {
     fn new() -> Self;
-    fn new_event(&mut self, task_id: TaskID, event_id: TaskEventID) -> TaskEventID;
-    fn dispatch(&mut self, event_id: TaskEventID, state: TaskEventState);
+    fn new_event(&self, task_id: TaskID, event_id: TaskEventID) -> TaskEventID;
+    fn dispatch(&self, event_id: TaskEventID, state: TaskEventState);
+}
+
+impl TaskEvents {
+    pub fn global() -> &'static Arc<Self> {
+        static EVENTS: OnceLock<Arc<TaskEvents>> = OnceLock::new();
+
+        EVENTS.get_or_init(|| Arc::new(Self::new()))
+    }
 }
 
 impl TaskEventsDispatcher for TaskEvents {
     fn new() -> Self {
-        HashMap::new()
+        TaskEvents {}
     }
 
-    fn new_event(&mut self, task_id: TaskID, event_id: TaskEventID) -> TaskEventID {
+    fn new_event(&self, task_id: TaskID, event_id: TaskEventID) -> TaskEventID {
         let mut event = TaskEvent {
             id: event_id,
             task_id,
             ..TaskEvent::default()
         };
         event.dispatch(TaskEventState::Pending);
-        self.insert(event_id, event);
+        EventsGuard::global().add_event(&event).unwrap();
         event_id
     }
 
-    fn dispatch(&mut self, event_id: TaskEventID, state: TaskEventState) {
-        let event = self.get_mut(&event_id).unwrap();
+    fn dispatch(&self, event_id: TaskEventID, state: TaskEventState) {
+        let mut event = EventsGuard::global().get_event(event_id).unwrap().unwrap(); // unwrap because it should be exist here, if not, it's a bug
         event.dispatch(state);
+        EventsGuard::global().update_event(&event).unwrap();
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TaskEvent {
-    id: TaskEventID,
-    task_id: TaskID,
-    state: TaskEventState,
-    timeline: HashMap<&'static str, Timestamp>,
+    pub id: TaskEventID,
+    pub task_id: TaskID,
+    pub state: TaskEventState,
+    pub timeline: HashMap<String, Timestamp>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub enum TaskEventState {
     Pending, // added to the queue, alias of created
     Running,
@@ -72,6 +86,6 @@ impl TaskEvent {
     fn dispatch(&mut self, state: TaskEventState) {
         self.state = state;
         self.timeline
-            .insert(self.state.fmt(), Utc::now().timestamp_millis());
+            .insert(self.state.fmt().into(), Utc::now().timestamp_millis());
     }
 }

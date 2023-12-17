@@ -1,6 +1,7 @@
+use super::storage::TaskGuard;
 use super::{
+    events::{TaskEvent, TaskEventState, TaskEvents, TaskEventsDispatcher},
     executor::{AsyncJob, Job, TaskExecutor},
-    records::{TaskEvent, TaskEvents},
 };
 use crate::error;
 use anyhow::{anyhow, Context, Result};
@@ -10,9 +11,9 @@ use delay_timer::{
     timer::task::TaskBuilder as TimerTaskBuilder,
     utils::convenience::cron_expression_grammatical_candy::{CandyCronStr, CandyFrequency},
 };
-use once_cell::sync::OnceCell;
-use serde::de;
+use serde::{Deserialize, Serialize};
 use snowflake::SnowflakeIdGenerator;
+use std::sync::OnceLock;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex, RwLock as RW},
@@ -21,14 +22,16 @@ use std::{
 
 pub type TaskID = u64;
 pub type TaskEventID = i64; // 任务事件 ID，适用于任务并发执行，区分不同的执行事件
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum TaskState {
     Cancelled, // 任务已取消，不再执行
-    Idle,      // 空闲
-    Running,   // 任务执行中
+    #[default]
+    Idle, // 空闲
+    Running(TaskEventID), // 任务执行中，存储最新执行的事件 ID
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TaskRunResult {
     Ok,
     Err(String),
@@ -41,6 +44,12 @@ pub enum TaskSchedule {
     Cron(String),       // 按 cron 表达式执行
 }
 
+impl Default for TaskSchedule {
+    fn default() -> Self {
+        Self::Once(Duration::from_secs(0))
+    }
+}
+
 // TODO: 如果需要的话，未来可以添加执行日记（历史记录）
 #[derive(Debug, Clone)]
 pub struct TaskOptions {
@@ -49,23 +58,27 @@ pub struct TaskOptions {
 
 impl Default for TaskOptions {
     fn default() -> Self {
-        TaskOptions {
+        Self {
             maximum_parallel_runnable_num: 5,
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
-    id: TaskID,
-    name: String,
-    schedule: TaskSchedule,
-    state: TaskState,
-    opts: TaskOptions,
-    last_run: Option<(Timestamp, TaskRunResult)>,
-    next_run: Option<Timestamp>, // timestamp
+    pub id: TaskID,
+    pub name: String,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub schedule: TaskSchedule,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub state: TaskState,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub opts: TaskOptions,
+    pub last_run: Option<(Timestamp, TaskRunResult)>,
+    pub next_run: Option<Timestamp>, // timestamp
+    #[serde(skip_serializing, skip_deserializing)]
     executor: TaskExecutor,
-    created_at: Timestamp,
+    pub created_at: Timestamp,
 }
 
 impl Default for Task {
@@ -152,41 +165,65 @@ fn build_task<'a>(task: Task, len: usize) -> (Task, TimerTaskBuilder<'a>) {
     (task, builder)
 }
 
-fn wrap_job(list: TaskList, task_id: TaskID, job: Job) {
-    let _ = list.set_task_state(task_id, TaskState::Running, None);
+fn wrap_job(list: TaskList, mut id_generator: SnowflakeIdGenerator, task_id: TaskID, job: Job) {
+    let event_id = id_generator.generate();
+    {
+        let _ = list.set_task_state(task_id, TaskState::Running(event_id), None);
+        TaskEvents::global().new_event(task_id, event_id);
+        TaskEvents::global().dispatch(event_id, TaskEventState::Running);
+    };
     let res = job.execute();
-    let _ = list.set_task_state(
-        task_id,
-        TaskState::Idle,
-        Some(match res {
+    {
+        let res = match res {
             Ok(_) => TaskRunResult::Ok,
             Err(e) => {
                 error!(format!("task error: {}", e.to_string()));
                 TaskRunResult::Err(e.to_string())
             }
-        }),
-    );
+        };
+        if let TaskState::Running(latest_event_id) = list.get_task_state(task_id).unwrap() {
+            if latest_event_id == event_id {
+                let _ = list.set_task_state(task_id, TaskState::Idle, Some(res.clone()));
+            }
+        }
+        TaskEvents::global().dispatch(event_id, TaskEventState::Finished(res));
+    }
 }
 
-async fn wrap_async_job(list: TaskList, task_id: TaskID, async_job: AsyncJob) {
-    let _ = list.set_task_state(task_id, TaskState::Running, None);
+async fn wrap_async_job(
+    list: TaskList,
+    mut id_generator: SnowflakeIdGenerator,
+    task_id: TaskID,
+    async_job: AsyncJob,
+) {
+    let event_id = id_generator.generate();
+    {
+        let _ = list.set_task_state(task_id, TaskState::Running(event_id), None);
+        TaskEvents::global().new_event(task_id, event_id);
+        TaskEvents::global().dispatch(event_id, TaskEventState::Running);
+    };
     let res = async_job.execute().await;
-    let _ = list.set_task_state(
-        task_id,
-        TaskState::Idle,
-        Some(match res {
+    {
+        let res = match res {
             Ok(_) => TaskRunResult::Ok,
             Err(e) => {
                 error!(format!("task error: {}", e.to_string()));
                 TaskRunResult::Err(e.to_string())
             }
-        }),
-    );
+        };
+        if let TaskState::Running(latest_event_id) = list.get_task_state(task_id).unwrap() {
+            if latest_event_id == event_id {
+                let _ = list.set_task_state(task_id, TaskState::Idle, Some(res.clone()));
+            }
+        }
+        TaskEvents::global().dispatch(event_id, TaskEventState::Finished(res));
+    }
 }
 
 // TaskList 语法糖
 type TaskList = Arc<RW<Vec<Task>>>;
 trait TaskListOps {
+    fn get_task_state(&self, task_id: TaskID) -> Result<TaskState>;
     fn set_task_state(
         &self,
         task_id: TaskID,
@@ -195,6 +232,15 @@ trait TaskListOps {
     ) -> Result<()>;
 }
 impl TaskListOps for TaskList {
+    fn get_task_state(&self, task_id: TaskID) -> Result<TaskState> {
+        let list = self.read().unwrap();
+        let item = list
+            .iter()
+            .find(|t| t.id == task_id)
+            .ok_or(anyhow!("task {} not found", task_id))?;
+        Ok(item.state.clone())
+    }
+
     fn set_task_state(
         &self,
         task_id: TaskID,
@@ -207,11 +253,11 @@ impl TaskListOps for TaskList {
             .find(|t| t.id == task_id)
             .ok_or(anyhow!("task {} not found", task_id))?;
         match state {
-            TaskState::Running => {
-                item.state = TaskState::Running;
+            TaskState::Running(event_id) => {
+                item.state = TaskState::Running(event_id);
             }
             TaskState::Idle => {
-                if let TaskState::Running = item.state {
+                if let TaskState::Running(_) = item.state {
                     item.last_run = Some((
                         Utc::now().timestamp(),
                         result.ok_or(anyhow!(
@@ -238,21 +284,41 @@ pub struct TaskManager {
 
     /// task list
     list: TaskList,
-
+    restore_list: TaskList,
     id_generator: SnowflakeIdGenerator,
-    events: TasksEvents, // 任务事件
 }
 
 impl TaskManager {
-    pub fn globals() -> &'static Self {
-        static TASK_MANAGER: OnceCell<TaskManager> = OnceCell::new();
+    pub fn global() -> &'static Self {
+        static TASK_MANAGER: OnceLock<TaskManager> = OnceLock::new();
 
-        TASK_MANAGER.get_or_init(|| TaskManager {
-            timer: Arc::new(Mutex::new(DelayTimerBuilder::default().build())),
-            list: Arc::new(RW::new(Vec::new())),
-            id_generator: SnowflakeIdGenerator::new(1, 1),
-            events: Arc::new(RW::new(HashMap::new())),
+        TASK_MANAGER.get_or_init(|| {
+            let mut task_manager = TaskManager {
+                timer: Arc::new(Mutex::new(DelayTimerBuilder::default().build())),
+                restore_list: Arc::new(RW::new(Vec::new())),
+                list: Arc::new(RW::new(Vec::new())),
+                id_generator: SnowflakeIdGenerator::new(1, 1),
+            };
+            task_manager.restore().unwrap();
+            task_manager.start_dump_task();
+            task_manager
         })
+    }
+
+    pub fn restore_tasks(&mut self, tasks: Vec<Task>) -> Result<()> {
+        let mut list = self.restore_list.write().unwrap();
+        list.clear();
+        for task in tasks {
+            list.push(task);
+        }
+        Ok(())
+    }
+
+    fn start_dump_task(&self) {
+        std::thread::spawn(move || loop {
+            std::thread::sleep(Duration::from_secs(5));
+            let _ = TaskManager::global().dump();
+        });
     }
 
     /// add task
@@ -274,13 +340,14 @@ impl TaskManager {
         };
 
         let task_id = task.id;
+        let id_generator = self.id_generator;
         let list_ref = self.list.clone();
         let executor = task.executor.clone();
         let timer_task = match executor {
             TaskExecutor::Sync(job) => {
                 let body = move || {
                     let list = list_ref.clone();
-                    wrap_job(list, task_id, job.clone())
+                    wrap_job(list, id_generator, task_id, job.clone())
                 };
                 builder.spawn_routine(body)
             }
@@ -288,7 +355,7 @@ impl TaskManager {
                 let body = move || {
                     let list = list_ref.clone();
                     let async_job = async_job.clone();
-                    async move { wrap_async_job(list, task_id, async_job).await }
+                    async move { wrap_async_job(list, id_generator, task_id, async_job).await }
                 };
 
                 builder.spawn_async_routine(body)
