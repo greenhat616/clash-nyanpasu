@@ -22,17 +22,7 @@ async function main() {
   consola.debug(`Current git short hash: ${GIT_SHORT_HASH}`);
 
   const version = `${tauriConf.package.version}-alpha+${GIT_SHORT_HASH}`;
-  // 1. update tauri version
-  consola.debug("Write tauri version to tauri.nightly.conf.json");
-  tauriConf.package.version = version;
-  await fs.writeJSON(TAURI_DEV_APP_CONF_PATH, tauriConf, { spaces: 2 });
-  consola.debug("tauri.nightly.conf.json updated");
-  // 2. update package version
-  consola.debug("Write tauri version to package.json");
-  packageJson.version = version;
-  await fs.writeJSON(PACKAGE_JSON_PATH, packageJson, { spaces: 2 });
-  consola.debug("package.json updated");
-  // 3. update wxs version
+  // 1. update wxs version
   consola.debug("Write raw version to wxs");
   const modifedWxsFile = wxsFile.replace(
     "{{VERSION}}",
@@ -40,6 +30,16 @@ async function main() {
   );
   await fs.writeFile(WXS_PATH, modifedWxsFile);
   consola.debug("wxs updated");
+  // 2. update tauri version
+  consola.debug("Write tauri version to tauri.nightly.conf.json");
+  tauriConf.package.version = version;
+  await fs.writeJSON(TAURI_DEV_APP_CONF_PATH, tauriConf, { spaces: 2 });
+  consola.debug("tauri.nightly.conf.json updated");
+  // 3. update package version
+  consola.debug("Write tauri version to package.json");
+  packageJson.version = version;
+  await fs.writeJSON(PACKAGE_JSON_PATH, packageJson, { spaces: 2 });
+  consola.debug("package.json updated");
 }
 
 main();
