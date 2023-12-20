@@ -52,7 +52,10 @@
         "timestampUrl": "",
         "wix": {
           "language": ["zh-CN", "en-US", "ru-RU"],
-          "template": "./wxs/nightly.wxs"
+          "template": "./templates/nightly.wxs"
+        },
+        "nsis": {
+          "template": "./templates/nightly.nsi"
         }
       }
     },
