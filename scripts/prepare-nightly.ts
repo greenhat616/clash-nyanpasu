@@ -9,10 +9,12 @@ const TAURI_DEV_APP_CONF_PATH = path.join(
   "tauri.nightly.conf.json",
 );
 const PACKAGE_JSON_PATH = path.join(cwd, "package.json");
+const WXS_PATH = path.join(cwd, "src", "wxs", "nightly.wxs");
 
 async function main() {
   const tauriConf = await fs.readJSON(TAURI_DEV_APP_CONF_PATH);
   const packageJson = await fs.readJSON(PACKAGE_JSON_PATH);
+  const wxsFile = await fs.readFile(WXS_PATH, "utf-8");
   consola.debug("Get current git short hash");
   const GIT_SHORT_HASH = execSync("git rev-parse --short HEAD")
     .toString()
@@ -30,6 +32,14 @@ async function main() {
   packageJson.version = version;
   await fs.writeJSON(PACKAGE_JSON_PATH, packageJson, { spaces: 2 });
   consola.debug("package.json updated");
+  // 3. update wxs version
+  consola.debug("Write raw version to wxs");
+  const modifedWxsFile = wxsFile.replace(
+    "{{VERSION}}",
+    tauriConf.package.version,
+  );
+  await fs.writeFile(WXS_PATH, modifedWxsFile);
+  consola.debug("wxs updated");
 }
 
 main();

@@ -51,7 +51,8 @@
         "digestAlgorithm": "sha256",
         "timestampUrl": "",
         "wix": {
-          "language": ["zh-CN", "en-US", "ru-RU"]
+          "language": ["zh-CN", "en-US", "ru-RU"],
+          "template": "./wxs/nightly.wxs"
         }
       }
     },
