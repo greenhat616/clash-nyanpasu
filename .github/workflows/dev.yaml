@@ -95,7 +95,7 @@ jobs:
           releaseBody: "More new features are now supported."
           releaseDraft: false
           prerelease: true
-          tauriScript: pnpm
+          tauriScript: pnpm tauri
           args: -f default-meta nightly -c ./backend/tauri/tauri.nightly.conf.json
 
       - name: Portable Bundle (Windows Only)
