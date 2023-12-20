@@ -15,7 +15,7 @@
             UpgradeCode="{{upgrade_code}}"
             Language="!(loc.TauriLanguage)"
             Manufacturer="{{manufacturer}}"
-            Version="1.4.2">
+            Version="{{version}}">
 
         <Package Id="*"
                  Keywords="Installer"
