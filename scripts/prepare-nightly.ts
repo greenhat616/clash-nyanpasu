@@ -9,7 +9,7 @@ const TAURI_DEV_APP_CONF_PATH = path.join(
   "tauri.nightly.conf.json",
 );
 const PACKAGE_JSON_PATH = path.join(cwd, "package.json");
-const WXS_PATH = path.join(cwd, "src", "wxs", "nightly.wxs");
+const WXS_PATH = path.join(TAURI_APP_DIR, "wxs", "nightly.wxs");
 
 async function main() {
   const tauriConf = await fs.readJSON(TAURI_DEV_APP_CONF_PATH);
@@ -25,7 +25,7 @@ async function main() {
   // 1. update wxs version
   consola.debug("Write raw version to wxs");
   const modifedWxsFile = wxsFile.replace(
-    "{{VERSION}}",
+    "{{version}}",
     tauriConf.package.version,
   );
   await fs.writeFile(WXS_PATH, modifedWxsFile);
