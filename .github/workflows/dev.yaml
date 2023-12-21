@@ -103,7 +103,7 @@ jobs:
       - name: Nightly Prepare (Windows NSIS and Portable)
         if: startsWith(matrix.targets.os, 'windows-') && matrix.targets.category == 'nsis'
         run: |
-          pnpm prepare:nightly
+          pnpm prepare:nightly --nsis
       - name: Tauri build
         uses: tauri-apps/tauri-action@v0
         env:
