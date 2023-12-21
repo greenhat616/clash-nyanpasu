@@ -170,8 +170,8 @@ jobs:
           cat > release.txt << 'EOF'
           ## Clash Nyanpasu Nightly Build
           Release created at  ${{ env.BUILDTIME }}.
-          Daily build of Clash Nyanpasu Dev branch.
-          [See the development log here](https://t.me/keikolog/462)
+          Daily build of **Clash Nyanpasu** on *dev* branch.
+          ***[See the development log here](https://t.me/keikolog/462)***
           EOF
       - name: Update Release
         uses: ncipollo/release-action@v1
@@ -187,7 +187,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
   updater:
-    name: Update Nigthly Updater
+    name: Update Nightly Updater
     runs-on: ubuntu-latest
     needs: [release, update_tag]
     # if: startsWith(github.repository, 'keiko233')
