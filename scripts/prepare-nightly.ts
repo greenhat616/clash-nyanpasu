@@ -52,7 +52,7 @@ async function main() {
   // consola.debug("wxs updated");
   // 2. update tauri version
   consola.debug("Write tauri version to tauri.nightly.conf.json");
-  if (!isMSI) tauriConf.package.version = version;
+  if (!isNSIS && !isMSI) tauriConf.package.version = version;
   await fs.writeJSON(TAURI_DEV_APP_CONF_PATH, tauriConf, { spaces: 2 });
   consola.debug("tauri.nightly.conf.json updated");
   // 3. update package version
