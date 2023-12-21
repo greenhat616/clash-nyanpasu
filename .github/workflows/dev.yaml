@@ -179,6 +179,10 @@ jobs:
           name: Clash Nyanpasu Dev
           tag: pre-release
           bodyFile: release.txt
+          allowUpdates: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          replacesArtifacts: false
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
