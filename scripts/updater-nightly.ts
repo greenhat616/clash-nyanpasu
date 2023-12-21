@@ -1,7 +1,7 @@
 import { context, getOctokit } from "@actions/github";
 import { execSync } from "child_process";
 import fetch from "node-fetch";
-import tauriNightly from "../backend/tauri/tauri.nightly.conf.json";
+import tauriNightly from "../backend/tauri/overrides/nightly.conf.json";
 import { getGithubUrl } from "./utils";
 import { consola } from "./utils/logger";
 const UPDATE_TAG_NAME = "updater";
