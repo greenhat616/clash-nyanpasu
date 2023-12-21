@@ -29,9 +29,9 @@ async function main() {
   // const wxsFile = await fs.readFile(WXS_PATH, "utf-8");
 
   if (isNSIS) {
-    tauriConf.tauri.bundle.targets = ["nsis"];
+    tauriConf.tauri.bundle.targets = ["nsis", "updater"];
   } else if (isMSI) {
-    tauriConf.tauri.bundle.targets = ["msi"];
+    tauriConf.tauri.bundle.targets = ["msi", "updater"];
   }
 
   consola.debug("Get current git short hash");
