@@ -30,7 +30,10 @@ async function resolveUpdater() {
   });
   const shortHash = await execSync(
     `git rev-parse --short ${latestPreRelease.target_commitish}`,
-  );
+  )
+    .toString()
+    .replace("\n", "")
+    .replace("\r", "");
   const updateData = {
     name: `v${tauriNightly.package.version}-alpha+${shortHash}`,
     notes: "Nightly build. Full changes see commit history.",
