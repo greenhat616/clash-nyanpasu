@@ -120,6 +120,7 @@ jobs:
           tauriScript: pnpm tauri
           args: -f default-meta nightly -c ./backend/tauri/tauri.nightly.conf.json
       - name: Portable Bundle (Windows Only)
+        if: startsWith(matrix.targets.os, 'windows-') && matrix.targets.category == 'nsis'
         run: |
           pnpm portable
         env:
