@@ -174,16 +174,13 @@ jobs:
           ***[See the development log here](https://t.me/keikolog/462)***
           EOF
       - name: Update Release
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v1
         with:
           name: Clash Nyanpasu Dev
-          tag: pre-release
-          bodyFile: release.txt
-          allowUpdates: true
-          omitNameDuringUpdate: true
-          omitPrereleaseDuringUpdate: true
-          replacesArtifacts: false
+          tag_name: pre-release
+          body_path: release.txt
           prerelease: true
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
   updater:

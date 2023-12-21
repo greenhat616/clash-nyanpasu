@@ -34,6 +34,7 @@ async function resolveUpdater() {
     .toString()
     .replace("\n", "")
     .replace("\r", "");
+  consola.info(`latest pre-release short hash: ${shortHash}`);
   const updateData = {
     name: `v${tauriNightly.package.version}-alpha+${shortHash}`,
     notes: "Nightly build. Full changes see commit history.",
