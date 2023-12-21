@@ -95,15 +95,29 @@ jobs:
       - name: Nightly Prepare
         if: startsWith(matrix.targets.os, 'windows-') == false
         run: |
-          pnpm nightly:prepare
+          pnpm prepare:nightly
       - name: Nightly Prepare (MSI only)
         if: startsWith(matrix.targets.os, 'windows-') && matrix.targets.category == 'msi'
         run: |
-          pnpm nightly:prepare --msi
+          pnpm prepare:nightly  --msi
       - name: Nightly Prepare (Windows NSIS and Portable)
         if: startsWith(matrix.targets.os, 'windows-') && matrix.targets.category == 'nsis'
         run: |
-          pnpm nightly:prepare
+          pnpm prepare:nightly
+      - name: Tauri build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          tagName: pre-release
+          releaseName: "Clash Nyanpasu Dev"
+          releaseBody: "More new features are now supported."
+          releaseDraft: false
+          prerelease: true
+          tauriScript: pnpm tauri
+          args: -f default-meta nightly -c ./backend/tauri/tauri.nightly.conf.json
       - name: Portable Bundle (Windows Only)
         run: |
           pnpm portable
