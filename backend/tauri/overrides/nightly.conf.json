@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/1.x/tooling/cli/schema.json",
+  "package": {
+    "version": "1.4.2"
+  },
+  "tauri": {
+    "updater": {
+      "endpoints": [
+        "https://mirror.ghproxy.com/https://github.com/greenhat616/clash-nyanpasu/releases/download/updater/update-nightly-proxy.json",
+        "https://ghproxy.com/https://github.com/greenhat616/clash-nyanpasu/releases/download/updater/update-nightly-proxy.json",
+        "https://github.com/greenhat616/clash-nyanpasu/releases/download/updater/update-nightly.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI3NUVCMDA1RTAwRkFGRUQKUldUdHJ3L2dCYkJlSjJWcFJiT2tmTTR5QmVacmVCbUVPZDBZN25jZGNUZW16eHhYeDJJRlo1dnMK"
+    }
+  }
+}

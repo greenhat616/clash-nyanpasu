@@ -13,7 +13,7 @@ impl Tray {
     pub fn tray_menu(app_handle: &AppHandle) -> SystemTrayMenu {
         let zh = { Config::verge().latest().language == Some("zh".into()) };
 
-        let version = app_handle.package_info().version.to_string();
+        let version = env!("NYANPASU_VERSION");
 
         macro_rules! t {
             ($en: expr, $zh: expr) => {
@@ -93,7 +93,8 @@ impl Tray {
                         t!("Restart App", "重启应用"),
                     ))
                     .add_item(
-                        CustomMenuItem::new("app_version", format!("Version {version}")).disabled(),
+                        CustomMenuItem::new("app_version", format!("Version v{version}"))
+                            .disabled(),
                     ),
             ))
             .add_native_item(SystemTrayMenuItem::Separator)
