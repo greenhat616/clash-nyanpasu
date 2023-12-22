@@ -181,6 +181,7 @@ jobs:
           body_path: release.txt
           prerelease: true
           generate_release_notes: true
+          target_commitish: dev
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
   updater:
