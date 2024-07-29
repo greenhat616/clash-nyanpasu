@@ -7,12 +7,31 @@ mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
+pub mod utils;
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Sysproxy {
     pub enable: bool,
     pub host: String,
     pub port: u16,
     pub bypass: String,
+}
+
+pub trait SystemProxy {
+    fn set_system_proxy(&self, proxy: &Sysproxy) -> Result<()>;
+    fn get_system_proxy(&self) -> Result<Sysproxy>;
+}
+
+pub trait NetworkManager: SystemProxy {}
+
+impl dyn NetworkManager {
+    pub fn is_support(&self) -> bool {
+        cfg!(any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "windows",
+        ))
+    }
 }
 
 #[derive(thiserror::Error, Debug)]

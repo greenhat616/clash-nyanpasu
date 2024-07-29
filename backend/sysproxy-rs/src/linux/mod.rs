@@ -3,6 +3,14 @@ use std::{process::Command, str::from_utf8};
 
 const CMD_KEY: &str = "org.gnome.system.proxy";
 
+const GNOME_COMMANDS: &[&str] = &["gsettings"];
+
+const KDE_COMMANDS: &[&str] = &[
+    "kwriteconfig6", // KDE 6
+    "kwriteconfig5", // KDE 5
+    "kwriteconfig",  // KDE 4
+];
+
 impl Sysproxy {
     pub fn get_system_proxy() -> Result<Sysproxy> {
         let enable = Sysproxy::get_enable()?;
